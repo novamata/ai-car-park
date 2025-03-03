@@ -33,4 +33,9 @@ variable "api_stage_name" {
   type        = string
 }
 
+variable "notification_email" {
+  description = "Email address to receive parking payment notifications"
+  type        = string
+}
+
 

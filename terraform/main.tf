@@ -109,6 +109,12 @@ resource "aws_s3_bucket" "car_images_bucket" {
   bucket = "${var.car_images_bucket_prefix}-${random_string.suffix.result}"
 }
 
+resource "aws_s3_object" "uploads_folder" {
+  bucket  = aws_s3_bucket.car_images_bucket.id
+  key     = "uploads/"
+  content = ""  
+}
+
 resource "random_string" "suffix" {
   length  = 8
   special = false
@@ -259,6 +265,14 @@ resource "aws_sns_topic" "payment_notifications" {
   name = "car-park-payment-notifications"
 }
 
+resource "aws_sns_topic_subscription" "email_subscription" {
+  topic_arn = aws_sns_topic.payment_notifications.arn
+  protocol  = "email"
+  endpoint  = var.notification_email
+  
+  count     = var.notification_email != "" ? 1 : 0
+}
+
 # -----------------#
 # LAMBDA FUNCTIONS #
 # -----------------#
@@ -330,7 +344,11 @@ resource "aws_s3_bucket_notification" "car_images_notification" {
     filter_prefix       = "uploads/"
   }
   
-  depends_on = [aws_lambda_permission.allow_s3]
+  depends_on = [
+    aws_lambda_permission.allow_s3,
+    aws_lambda_function.s3getpassrek,
+    aws_s3_object.uploads_folder
+  ]
 }
 
 resource "aws_lambda_permission" "allow_s3" {

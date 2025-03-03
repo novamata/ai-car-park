@@ -1,6 +1,7 @@
 import boto3
 import time
 import uuid
+import os
 
 def detect_text(photo, bucket):
     client=boto3.client('rekognition')
@@ -13,7 +14,7 @@ def detect_text(photo, bucket):
     return False
 
 def main(event, context): 
-    bucket = event["Records"][0]["s3"]["object"]["bucket"]["name"]  # Get bucket from event
+    bucket = event["Records"][0]["s3"]["bucket"]["name"]
     photo = event["Records"][0]["s3"]["object"]["key"]
 
     text_detected = detect_text(photo, bucket)
@@ -30,7 +31,8 @@ def main(event, context):
     current_time = int(time.time())
     
     dynamodb = boto3.resource('dynamodb')
-    table = dynamodb.Table('ParkingSessions')
+    sessions_table = os.environ.get('SESSIONS_TABLE', 'ParkingSessions')
+    table = dynamodb.Table(sessions_table)
     
     response = table.query(
         IndexName='CarRegistrationIndex',
