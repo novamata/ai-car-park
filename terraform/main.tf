@@ -282,7 +282,7 @@ resource "aws_lambda_function" "notifications" {
   filename         = data.archive_file.notifications_zip.output_path
   source_code_hash = data.archive_file.notifications_zip.output_base64sha256
   role             = aws_iam_role.lambda_role.arn
-  handler          = "notifications.main"
+  handler          = "notifications.lambda_handler"
   runtime          = "python3.10"
   timeout          = 15
   memory_size      = 128
