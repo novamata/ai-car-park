@@ -115,6 +115,24 @@ resource "aws_s3_object" "uploads_folder" {
   content = ""  
 }
 
+resource "aws_s3_bucket_lifecycle_configuration" "car_images_lifecycle" {
+  bucket = aws_s3_bucket.car_images_bucket.id
+
+  rule {
+    id     = "transition-to-glacier"
+    status = "Enabled"
+    
+    filter {
+      prefix = "uploads/"
+    }
+
+    transition {
+      days          = 7
+      storage_class = "GLACIER"
+    }
+  }
+}
+
 resource "random_string" "suffix" {
   length  = 8
   special = false
