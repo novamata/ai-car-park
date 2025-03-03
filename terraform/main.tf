@@ -323,12 +323,14 @@ resource "aws_lambda_function" "regplateapi" {
 
 resource "aws_s3_bucket_notification" "car_images_notification" {
   bucket = aws_s3_bucket.car_images_bucket.id
-
+  
   lambda_function {
     lambda_function_arn = aws_lambda_function.s3getpassrek.arn
     events              = ["s3:ObjectCreated:*"]
     filter_prefix       = "uploads/"
   }
+  
+  depends_on = [aws_lambda_permission.allow_s3]
 }
 
 resource "aws_lambda_permission" "allow_s3" {
@@ -360,7 +362,7 @@ resource "aws_apigatewayv2_stage" "car_park_api_stage" {
   auto_deploy = true
 }
 
-# -----------------------#
+# -------------------------#
 # API GATEWAY INTEGRATIONS #
 # -----------------------#
 
