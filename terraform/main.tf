@@ -526,9 +526,9 @@ resource "aws_lambda_permission" "api_gateway_user_profile" {
 resource "aws_cognito_user_pool" "car_park_users_pool" {
   name = "car-park-users-pool"
   
-  auto_verify {
-    email = true
-  }
+  # auto_verify {
+  #   email = true
+  # }
   
   password_policy {
     minimum_length = 8

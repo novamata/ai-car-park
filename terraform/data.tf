@@ -15,3 +15,9 @@ data "archive_file" "regplateapi_zip" {
   source_file = "${path.module}/../lambda/regplateapi.py"
   output_path = "${path.module}/regplateapi.zip"
 }
+
+data "archive_file" "user_profile_zip" {
+  type        = "zip"
+  source_file = "${path.module}/../lambda/user_profile.py"
+  output_path = "${path.module}/user_profile.zip"
+}
