@@ -349,6 +349,24 @@ resource "aws_lambda_function" "regplateapi" {
   }
 }
 
+resource "aws_lambda_function" "user_profile" {
+  function_name    = "car-park-user-profile"
+  filename         = data.archive_file.user_profile_zip.output_path
+  source_code_hash = data.archive_file.user_profile_zip.output_base64sha256
+  role             = aws_iam_role.lambda_role.arn
+  handler          = "user_profile.main"
+  runtime          = "python3.10"
+  timeout          = 15
+  memory_size      = 128
+
+  environment {
+    variables = {
+      USERS_TABLE    = aws_dynamodb_table.car_park_users.name
+      SNS_TOPIC_ARN  = aws_sns_topic.payment_notifications.arn
+    }
+  }
+}
+
 # ------------------#
 # S3 EVENT TRIGGERS #
 # ------------------#
@@ -400,7 +418,7 @@ resource "aws_apigatewayv2_stage" "car_park_api_stage" {
 
 # -------------------------#
 # API GATEWAY INTEGRATIONS #
-# -----------------------#
+# ------------------------#
 
 resource "aws_apigatewayv2_integration" "regplateapi_integration" {
   api_id             = aws_apigatewayv2_api.car_park_api.id
@@ -442,4 +460,107 @@ resource "aws_lambda_permission" "api_gateway_notifications" {
   function_name = aws_lambda_function.notifications.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.car_park_api.execution_arn}/*/*"
+}
+
+resource "aws_apigatewayv2_integration" "user_profile_integration" {
+  api_id           = aws_apigatewayv2_api.car_park_api.id
+  integration_type = "AWS_PROXY"
+  
+  integration_uri    = aws_lambda_function.user_profile.invoke_arn
+  integration_method = "POST"
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "profile_post_route" {
+  api_id    = aws_apigatewayv2_api.car_park_api.id
+  route_key = "POST /profile"
+  
+  target = "integrations/${aws_apigatewayv2_integration.user_profile_integration.id}"
+  authorization_type = "JWT"
+  authorizer_id = aws_apigatewayv2_authorizer.cognito_authorizer.id
+}
+
+resource "aws_apigatewayv2_route" "profile_get_route" {
+  api_id    = aws_apigatewayv2_api.car_park_api.id
+  route_key = "GET /profile"
+  
+  target = "integrations/${aws_apigatewayv2_integration.user_profile_integration.id}"
+  authorization_type = "JWT"
+  authorizer_id = aws_apigatewayv2_authorizer.cognito_authorizer.id
+}
+
+resource "aws_apigatewayv2_route" "profile_put_route" {
+  api_id    = aws_apigatewayv2_api.car_park_api.id
+  route_key = "PUT /profile"
+  
+  target = "integrations/${aws_apigatewayv2_integration.user_profile_integration.id}"
+  authorization_type = "JWT"
+  authorizer_id = aws_apigatewayv2_authorizer.cognito_authorizer.id
+}
+
+resource "aws_apigatewayv2_authorizer" "cognito_authorizer" {
+  api_id           = aws_apigatewayv2_api.car_park_api.id
+  authorizer_type  = "JWT"
+  identity_sources = ["$request.header.Authorization"]
+  name             = "cognito-authorizer"
+
+  jwt_configuration {
+    audience = [aws_cognito_user_pool_client.car_park_client.id]
+    issuer   = "https://cognito-idp.${var.aws_region}.amazonaws.com/${aws_cognito_user_pool.car_park_users_pool.id}"
+  }
+}
+
+resource "aws_lambda_permission" "api_gateway_user_profile" {
+  statement_id  = "AllowExecutionFromAPIGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.user_profile.function_name
+  principal     = "apigateway.amazonaws.com"
+  
+  source_arn = "${aws_apigatewayv2_api.car_park_api.execution_arn}/*/*"
+}
+
+# -------------------------#
+# COGNITO USER POOLS       #
+# -------------------------#
+
+resource "aws_cognito_user_pool" "car_park_users_pool" {
+  name = "car-park-users-pool"
+  
+  auto_verify {
+    email = true
+  }
+  
+  password_policy {
+    minimum_length = 8
+    require_lowercase = true
+    require_numbers = true
+    require_uppercase = true
+    require_symbols = false
+  }
+  
+  schema {
+    name = "email"
+    attribute_data_type = "String"
+    mutable = true
+    required = true
+  }
+}
+
+resource "aws_cognito_user_pool_client" "car_park_client" {
+  name = "car-park-client"
+  user_pool_id = aws_cognito_user_pool.car_park_users_pool.id
+  
+  generate_secret = false
+  explicit_auth_flows = [
+    "ALLOW_USER_SRP_AUTH",
+    "ALLOW_REFRESH_TOKEN_AUTH",
+    "ALLOW_USER_PASSWORD_AUTH"
+  ]
+  
+  callback_urls = ["https://${aws_cloudfront_distribution.frontend_distribution.domain_name}"]
+  logout_urls = ["https://${aws_cloudfront_distribution.frontend_distribution.domain_name}"]
+  
+  allowed_oauth_flows = ["implicit"]
+  allowed_oauth_scopes = ["email", "openid", "profile"]
+  supported_identity_providers = ["COGNITO"]
 }
