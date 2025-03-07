@@ -7,7 +7,7 @@ from datetime import datetime
 dynamodb = boto3.resource('dynamodb')
 sns = boto3.client('sns')
 
-USERS_TABLE = os.environ.get('USERS_TABLE')
+USERS_TABLE = os.environ.get('USERS_TABLE', 'CarParkUsers')
 SNS_TOPIC_ARN = os.environ.get('SNS_TOPIC_ARN')
 
 def handle_cognito_trigger(event, context):
@@ -165,7 +165,7 @@ def update_user_profile(event, context):
         update_expression += "UpdatedAt = :updated"
         expression_values[':updated'] = datetime.now().isoformat()
         
-        if len(expression_values) == 1:  # Only UpdatedAt was set
+        if len(expression_values) == 1: 
             return {
                 'statusCode': 400,
                 'headers': {
