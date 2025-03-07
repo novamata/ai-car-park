@@ -189,6 +189,7 @@ ai-car-park/
 │   │   ├── App.vue          # Main application component
 │   │   └── main.js          # Application entry point
 │   └── package.json         # Frontend dependencies
+│   └── .env                 # Environment variables
 ├── lambda/                  # Lambda functions
 │   ├── notifications.py     # Payment notification function
 │   ├── regplateapi.py       # Registration plate API function
