@@ -107,7 +107,32 @@ export default {
         
         if (response.data) {
           this.profile.name = response.data.Name || '';
-          this.profile.regPlates = response.data.RegPlates || [];
+          
+          if (response.data.RegPlates) {
+            console.log('RegPlates from API:', response.data.RegPlates);
+            
+            if (Array.isArray(response.data.RegPlates)) {
+              this.profile.regPlates = response.data.RegPlates;
+            } else {
+              console.warn('RegPlates is not an array:', response.data.RegPlates);
+              try {
+                this.profile.regPlates = [response.data.RegPlates.toString()];
+              } catch (e) {
+                console.error('Failed to convert RegPlates to array:', e);
+                this.profile.regPlates = [];
+              }
+            }
+          } else if (response.data.CarRegistration) {
+            console.log('Using CarRegistration instead of RegPlates:', response.data.CarRegistration);
+            this.profile.regPlates = [response.data.CarRegistration];
+          } else {
+            console.warn('No RegPlates or CarRegistration found in API response');
+            this.profile.regPlates = [];
+          }
+          
+          if (this.profile.regPlates.length === 0) {
+            this.addPlate();
+          }
         }
       } catch (error) {
         console.error('Error loading profile:', error);

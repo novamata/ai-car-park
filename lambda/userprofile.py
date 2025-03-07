@@ -107,6 +107,66 @@ def get_user_profile(event, context):
         print("DynamoDB Response:", json.dumps(response))
         
         if 'Item' in response:
+            item = response['Item']
+            print("User item found:", json.dumps(item))
+            
+            if 'RegPlates' in item:
+                print("RegPlates found:", json.dumps(item['RegPlates']))
+            else:
+                print("RegPlates not found in user item")
+                
+                if 'CarRegistration' in item:
+                    car_reg = item['CarRegistration']
+                    print(f"Found CarRegistration directly in user record: {car_reg}")
+                    
+                    reg_plates = [car_reg]
+                    item['RegPlates'] = reg_plates
+                    
+                    try:
+                        table.update_item(
+                            Key={'UserID': user_id},
+                            UpdateExpression='SET RegPlates = :plates',
+                            ExpressionAttributeValues={
+                                ':plates': reg_plates
+                            }
+                        )
+                        print(f"Updated user record with RegPlates: {reg_plates}")
+                    except Exception as e:
+                        print(f"Error updating user record with RegPlates: {str(e)}")
+                else:
+                    try:
+                        scan_response = table.scan(
+                            FilterExpression='UserID = :user_id',
+                            ExpressionAttributeValues={
+                                ':user_id': user_id
+                            }
+                        )
+                        
+                        reg_plates = []
+                        for scan_item in scan_response.get('Items', []):
+                            if 'CarRegistration' in scan_item and scan_item['CarRegistration'] != user_id:
+                                reg_plates.append(scan_item['CarRegistration'])
+                        
+                        if reg_plates:
+                            print(f"Found registration plates in scan: {reg_plates}")
+                            
+                            item['RegPlates'] = reg_plates
+                            
+                            table.update_item(
+                                Key={'UserID': user_id},
+                                UpdateExpression='SET RegPlates = :plates',
+                                ExpressionAttributeValues={
+                                    ':plates': reg_plates
+                                }
+                            )
+                            print("Updated user record with RegPlates")
+                        else:
+                            print("No registration plates found in scan")
+                            item['RegPlates'] = []
+                    except Exception as e:
+                        print(f"Error scanning for registration plates: {str(e)}")
+                        item['RegPlates'] = []
+            
             return {
                 'statusCode': 200,
                 'headers': {
@@ -114,7 +174,7 @@ def get_user_profile(event, context):
                     'Access-Control-Allow-Credentials': 'true',
                     'Content-Type': 'application/json'
                 },
-                'body': json.dumps(response['Item'], default=decimal_default)
+                'body': json.dumps(item, default=decimal_default)
             }
         else:
             return {
@@ -155,6 +215,22 @@ def update_car_registration_index(user_id, reg_plates):
     email = user.get('Email', '')
     name = user.get('Name', '')
     
+    update_expression = 'SET RegPlates = :plates'
+    expression_values = {
+        ':plates': reg_plates
+    }
+    
+    if reg_plates and len(reg_plates) > 0:
+        update_expression += ', CarRegistration = :car_reg'
+        expression_values[':car_reg'] = reg_plates[0]
+    
+    table.update_item(
+        Key={'UserID': user_id},
+        UpdateExpression=update_expression,
+        ExpressionAttributeValues=expression_values
+    )
+    print(f"Updated main user record with RegPlates: {reg_plates}")
+    
     for plate in reg_plates:
         if plate:  
             table.put_item(Item={
@@ -163,6 +239,7 @@ def update_car_registration_index(user_id, reg_plates):
                 'Email': email,
                 'Name': name
             })
+            print(f"Added plate to CarRegistrationIndex: {plate}")
     
     print(f"Updated CarRegistrationIndex for user {user_id} with plates: {reg_plates}")
 
