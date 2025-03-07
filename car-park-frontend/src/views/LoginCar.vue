@@ -35,7 +35,7 @@
 </template>
 
 <script>
-import { Auth } from '@aws-amplify/auth';
+import { signIn } from 'aws-amplify/auth';
 
 export default {
   data() {
@@ -52,7 +52,7 @@ export default {
       this.error = null;
       
       try {
-        await Auth.signIn({
+        await signIn({
           username: this.email,
           password: this.password
         });
