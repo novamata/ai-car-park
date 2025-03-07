@@ -1,40 +1,36 @@
-import Vue from 'vue';
-import VueRouter from 'vue-router';
+import { createRouter, createWebHistory } from 'vue-router';
 import { Auth } from 'aws-amplify';
-import Login from '../views/Login.vue';
-import Register from '../views/Register.vue';
-import UserProfile from '../views/UserProfile.vue';
-import Home from '../views/Home.vue';
-
-Vue.use(VueRouter);
+import LoginCar from '../views/LoginCar.vue';
+import RegisterCar from '../views/RegisterCar.vue';
+import UserProfileCar from '../views/UserProfileCar.vue';
+import HomeCar from '../views/HomeCar.vue';
 
 const routes = [
   {
     path: '/',
-    name: 'Home',
-    component: Home
+    name: 'HomeCar',
+    component: HomeCar
   },
   {
     path: '/login',
-    name: 'Login',
-    component: Login
+    name: 'LoginCar',
+    component: LoginCar
   },
   {
     path: '/register',
-    name: 'Register',
-    component: Register
+    name: 'RegisterCar',
+    component: RegisterCar
   },
   {
     path: '/profile',
-    name: 'Profile',
-    component: UserProfile,
+    name: 'UserProfileCar',
+    component: UserProfileCar,
     meta: { requiresAuth: true }
   }
 ];
 
-const router = new VueRouter({
-  mode: 'history',
-  base: process.env.BASE_URL,
+const router = createRouter({
+  history: createWebHistory(process.env.BASE_URL),
   routes
 });
 

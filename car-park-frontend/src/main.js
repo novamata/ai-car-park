@@ -1,14 +1,11 @@
-import Vue from 'vue';
+import { createApp } from 'vue';
 import App from './App.vue';
 import router from './router';
-import store from './store';
-import { BootstrapVue, IconsPlugin } from 'bootstrap-vue';
+// import store from './store';
 import 'bootstrap/dist/css/bootstrap.css';
-import 'bootstrap-vue/dist/bootstrap-vue.css';
 import Amplify from 'aws-amplify';
-
-Vue.use(BootstrapVue);
-Vue.use(IconsPlugin);
+import BootstrapVue3 from 'bootstrap-vue-3';
+import 'bootstrap-vue-3/dist/bootstrap-vue-3.css';
 
 Amplify.configure({
   Auth: {
@@ -33,10 +30,7 @@ Amplify.configure({
   }
 });
 
-Vue.config.productionTip = false;
-
-new Vue({
-  router,
-  store,
-  render: h => h(App)
-}).$mount('#app');
+const app = createApp(App);
+app.use(router);
+app.use(BootstrapVue3);
+app.mount('#app');

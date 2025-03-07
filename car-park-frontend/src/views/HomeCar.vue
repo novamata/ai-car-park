@@ -29,7 +29,7 @@
 import { Auth } from 'aws-amplify';
 
 export default {
-  name: 'Home',
+  name: 'HomeCar',
   data() {
     return {
       isAuthenticated: false

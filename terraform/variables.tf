@@ -37,5 +37,3 @@ variable "notification_email" {
   description = "Email address to receive parking payment notifications"
   type        = string
 }
-
-

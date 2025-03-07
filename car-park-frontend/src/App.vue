@@ -51,7 +51,7 @@ export default {
   },
   async created() {
     this.checkAuth();
-    this.$root.$on('auth-change', this.checkAuth);
+    setInterval(this.checkAuth, 60000); // Check auth every minute
   },
   methods: {
     async checkAuth() {
