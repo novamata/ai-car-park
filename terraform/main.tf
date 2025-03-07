@@ -400,20 +400,26 @@ resource "aws_lambda_permission" "allow_s3" {
 # -----------------#
 
 resource "aws_apigatewayv2_api" "car_park_api" {
-  name          = var.api_name
+  name          = "car-park-api"
   protocol_type = "HTTP"
+  
   cors_configuration {
-    allow_origins = ["*"]
-    allow_methods = ["GET", "POST", "PUT", "DELETE"]
-    allow_headers = ["Content-Type", "Authorization"]
-    max_age       = 300
+    allow_origins = ["*"]  # In a live environment, replace with your frontend URL
+    allow_methods = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    allow_headers = ["Content-Type", "Authorization", "X-Amz-Date", "X-Api-Key", "X-Amz-Security-Token"]
+    max_age      = 300
   }
 }
 
 resource "aws_apigatewayv2_stage" "car_park_api_stage" {
-  api_id      = aws_apigatewayv2_api.car_park_api.id
-  name        = var.api_stage_name
+  api_id = aws_apigatewayv2_api.car_park_api.id
+  name   = "$default"
   auto_deploy = true
+
+  default_route_settings {
+    throttling_burst_limit = 100
+    throttling_rate_limit  = 50
+  }
 }
 
 # -------------------------#

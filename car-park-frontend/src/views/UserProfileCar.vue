@@ -52,8 +52,17 @@
 </template>
 
 <script>
-import { Auth } from 'aws-amplify';
+import { fetchUserAttributes } from 'aws-amplify/auth';
+import { fetchAuthSession } from 'aws-amplify/auth';
 import axios from 'axios';
+
+const api = axios.create({
+  withCredentials: false, 
+  headers: {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json'
+  }
+});
 
 export default {
   data() {
@@ -77,16 +86,17 @@ export default {
       this.error = null;
       
       try {
-        const user = await Auth.currentAuthenticatedUser();
-        const token = user.signInUserSession.idToken.jwtToken;
+        const attributes = await fetchUserAttributes();
+        const { tokens } = await fetchAuthSession();
+        const token = tokens.idToken.toString();
         
-        this.profile.email = user.attributes.email;
+        this.profile.email = attributes.email;
         
-        const response = await axios.get(
+        const response = await api.get(
           `${process.env.VUE_APP_API_URL}/profile`,
           {
             headers: {
-              Authorization: `Bearer ${token}`
+              'Authorization': `Bearer ${token}`
             }
           }
         );
@@ -97,8 +107,16 @@ export default {
         }
       } catch (error) {
         console.error('Error loading profile:', error);
-        if (error.response && error.response.status !== 404) {
-          this.error = 'Failed to load profile';
+        if (error.response) {
+          // The request was made and the server responded with a status code
+          // that falls out of the range of 2xx
+          this.error = `Server error: ${error.response.status} - ${error.response.data?.message || 'Unknown error'}`;
+        } else if (error.request) {
+          // The request was made but no response was received
+          this.error = 'No response from server. Please check your connection.';
+        } else {
+          // Something happened in setting up the request that triggered an Error
+          this.error = error.message;
         }
       } finally {
         this.loading = false;
@@ -110,20 +128,20 @@ export default {
       this.success = null;
       
       try {
-        const user = await Auth.currentAuthenticatedUser();
-        const token = user.signInUserSession.idToken.jwtToken;
+        const { tokens } = await fetchAuthSession();
+        const token = tokens.idToken.toString();
         
         const payload = {
           name: this.profile.name,
           regPlates: this.profile.regPlates
         };
         
-        await axios.put(
+        await api.put(
           `${process.env.VUE_APP_API_URL}/profile`,
           payload,
           {
             headers: {
-              Authorization: `Bearer ${token}`
+              'Authorization': `Bearer ${token}`
             }
           }
         );
@@ -131,7 +149,13 @@ export default {
         this.success = 'Profile saved successfully';
       } catch (error) {
         console.error('Error saving profile:', error);
-        this.error = error.response?.data?.error || 'Failed to save profile';
+        if (error.response) {
+          this.error = `Server error: ${error.response.status} - ${error.response.data?.message || 'Unknown error'}`;
+        } else if (error.request) {
+          this.error = 'No response from server. Please check your connection.';
+        } else {
+          this.error = error.message;
+        }
       } finally {
         this.loading = false;
       }
