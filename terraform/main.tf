@@ -300,7 +300,7 @@ resource "aws_lambda_function" "notifications" {
   filename         = data.archive_file.notifications_zip.output_path
   source_code_hash = data.archive_file.notifications_zip.output_base64sha256
   role             = aws_iam_role.lambda_role.arn
-  handler          = "notifications.lambda_handler"
+  handler          = "notifications.main"
   runtime          = "python3.10"
   timeout          = 15
   memory_size      = 128
@@ -349,12 +349,12 @@ resource "aws_lambda_function" "regplateapi" {
   }
 }
 
-resource "aws_lambda_function" "user_profile" {
+resource "aws_lambda_function" "userprofile" {
   function_name    = "car-park-user-profile"
   filename         = data.archive_file.user_profile_zip.output_path
   source_code_hash = data.archive_file.user_profile_zip.output_base64sha256
   role             = aws_iam_role.lambda_role.arn
-  handler          = "user_profile.main"
+  handler          = "userprofile.main"
   runtime          = "python3.10"
   timeout          = 15
   memory_size      = 128
@@ -472,7 +472,7 @@ resource "aws_apigatewayv2_integration" "user_profile_integration" {
   api_id           = aws_apigatewayv2_api.car_park_api.id
   integration_type = "AWS_PROXY"
   
-  integration_uri    = aws_lambda_function.user_profile.invoke_arn
+  integration_uri    = aws_lambda_function.userprofile.invoke_arn
   integration_method = "POST"
   payload_format_version = "2.0"
 }
@@ -519,7 +519,7 @@ resource "aws_apigatewayv2_authorizer" "cognito_authorizer" {
 resource "aws_lambda_permission" "api_gateway_user_profile" {
   statement_id  = "AllowExecutionFromAPIGateway"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.user_profile.function_name
+  function_name = aws_lambda_function.userprofile.function_name
   principal     = "apigateway.amazonaws.com"
   
   source_arn = "${aws_apigatewayv2_api.car_park_api.execution_arn}/*/*"
@@ -560,7 +560,7 @@ resource "aws_cognito_user_pool" "car_park_users_pool" {
   }
 
   lambda_config {
-    post_confirmation = aws_lambda_function.user_profile.arn
+    post_confirmation = aws_lambda_function.userprofile.arn
   }
 }
 
@@ -586,7 +586,7 @@ resource "aws_cognito_user_pool_client" "car_park_client" {
 resource "aws_lambda_permission" "allow_cognito_user_profile" {
   statement_id  = "AllowCognitoInvoke"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.user_profile.function_name
+  function_name = aws_lambda_function.userprofile.function_name
   principal     = "cognito-idp.amazonaws.com"
   source_arn    = aws_cognito_user_pool.car_park_users_pool.arn
 }
