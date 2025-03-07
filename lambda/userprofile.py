@@ -27,6 +27,8 @@ def handle_cognito_trigger(event, context):
             table = dynamodb.Table(USERS_TABLE)
             table.put_item(Item=user_item)
             
+            update_car_registration_index(user_attributes['sub'], [])
+            
             if user_attributes['email']:
                 sns.subscribe(
                     TopicArn=SNS_TOPIC_ARN,
@@ -50,6 +52,8 @@ def create_user_profile(event, context):
         name = body.get('name', '')
         reg_plates = body.get('regPlates', [])
         
+        reg_plates = [plate.strip() for plate in reg_plates if plate]
+        
         user_item = {
             'UserID': user_id,
             'Email': email,
@@ -60,6 +64,9 @@ def create_user_profile(event, context):
         
         table = dynamodb.Table(USERS_TABLE)
         table.put_item(Item=user_item)
+        
+        if reg_plates:
+            update_car_registration_index(user_id, reg_plates)
         
         if email:
             sns.subscribe(
@@ -136,6 +143,29 @@ def get_user_profile(event, context):
             })
         }
 
+def update_car_registration_index(user_id, reg_plates):
+    table = dynamodb.Table(USERS_TABLE)
+    
+    response = table.get_item(Key={'UserID': user_id})
+    if 'Item' not in response:
+        print(f"User {user_id} not found")
+        return
+    
+    user = response['Item']
+    email = user.get('Email', '')
+    name = user.get('Name', '')
+    
+    for plate in reg_plates:
+        if plate:  
+            table.put_item(Item={
+                'UserID': user_id,
+                'CarRegistration': plate,
+                'Email': email,
+                'Name': name
+            })
+    
+    print(f"Updated CarRegistrationIndex for user {user_id} with plates: {reg_plates}")
+
 def update_user_profile(event, context):
     try:
         print("Event:", json.dumps(event))
@@ -148,6 +178,9 @@ def update_user_profile(event, context):
         reg_plates = body.get('regPlates')
         print("Name:", name)
         print("Reg Plates:", reg_plates)
+        
+        if reg_plates is not None:
+            reg_plates = [plate.strip() for plate in reg_plates if plate]
         
         update_expression = "SET "
         expression_values = {}
@@ -195,6 +228,9 @@ def update_user_profile(event, context):
             
         response = table.update_item(**update_params)
         print("DynamoDB Response:", json.dumps(response))
+        
+        if reg_plates is not None:
+            update_car_registration_index(user_id, reg_plates)
         
         return {
             'statusCode': 200,

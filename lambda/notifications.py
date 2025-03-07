@@ -18,6 +18,8 @@ class DecimalEncoder(json.JSONEncoder):
 def get_user_by_car_reg(car_reg):    
     users_table = dynamodb.Table(USERS_TABLE)
     
+    car_reg = car_reg.strip() if car_reg else car_reg
+    
     response = users_table.query(
         IndexName='CarRegistrationIndex',
         KeyConditionExpression='CarRegistration = :car_reg',

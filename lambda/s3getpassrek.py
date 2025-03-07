@@ -26,6 +26,7 @@ def main(event, context):
             'body': 'No registration plate detected'
         }
     
+    text_detected = text_detected.strip()
     print("Text detected: " + str(text_detected))
     
     current_time = int(time.time())
