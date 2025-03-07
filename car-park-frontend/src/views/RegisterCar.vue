@@ -63,7 +63,7 @@
 </template>
 
 <script>
-import { Auth } from 'aws-amplify';
+import { signUp, confirmSignUp } from 'aws-amplify/auth';
 
 export default {
   data() {
@@ -89,11 +89,13 @@ export default {
       this.error = null;
       
       try {
-        await Auth.signUp({
+        await signUp({
           username: this.email,
           password: this.password,
-          attributes: {
-            email: this.email
+          options: {
+            userAttributes: {
+              email: this.email
+            }
           }
         });
         
@@ -110,7 +112,10 @@ export default {
       this.error = null;
       
       try {
-        await Auth.confirmSignUp(this.email, this.code);
+        await confirmSignUp({
+          username: this.email,
+          confirmationCode: this.code
+        });
         this.$router.push('/login');
       } catch (error) {
         console.error('Error confirming sign up:', error);

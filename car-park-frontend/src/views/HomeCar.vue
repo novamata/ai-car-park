@@ -26,7 +26,7 @@
 </template>
 
 <script>
-import { Auth } from 'aws-amplify';
+import { getCurrentUser, signOut } from 'aws-amplify/auth';
 
 export default {
   name: 'HomeCar',
@@ -37,7 +37,7 @@ export default {
   },
   async created() {
     try {
-      await Auth.currentAuthenticatedUser();
+      await getCurrentUser();
       this.isAuthenticated = true;
     } catch (error) {
       this.isAuthenticated = false;
@@ -46,7 +46,7 @@ export default {
   methods: {
     async signOut() {
       try {
-        await Auth.signOut();
+        await signOut();
         this.isAuthenticated = false;
         this.$router.push('/login');
       } catch (error) {

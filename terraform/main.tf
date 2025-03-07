@@ -526,9 +526,17 @@ resource "aws_lambda_permission" "api_gateway_user_profile" {
 resource "aws_cognito_user_pool" "car_park_users_pool" {
   name = "car-park-users-pool"
   
-  # auto_verify {
-  #   email = true
-  # }
+  auto_verified_attributes = ["email"]
+  
+  email_configuration {
+    email_sending_account = "COGNITO_DEFAULT"
+  }
+  
+  verification_message_template {
+    default_email_option = "CONFIRM_WITH_CODE"
+    email_subject = "Your verification code"
+    email_message = "Your verification code is {####}"
+  }
   
   password_policy {
     minimum_length = 8
@@ -543,6 +551,10 @@ resource "aws_cognito_user_pool" "car_park_users_pool" {
     attribute_data_type = "String"
     mutable = true
     required = true
+  }
+
+  lambda_config {
+    post_confirmation = aws_lambda_function.user_profile.arn
   }
 }
 
@@ -563,4 +575,12 @@ resource "aws_cognito_user_pool_client" "car_park_client" {
   allowed_oauth_flows = ["implicit"]
   allowed_oauth_scopes = ["email", "openid", "profile"]
   supported_identity_providers = ["COGNITO"]
+}
+
+resource "aws_lambda_permission" "allow_cognito_user_profile" {
+  statement_id  = "AllowCognitoInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.user_profile.function_name
+  principal     = "cognito-idp.amazonaws.com"
+  source_arn    = aws_cognito_user_pool.car_park_users_pool.arn
 }

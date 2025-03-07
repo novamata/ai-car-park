@@ -35,7 +35,7 @@
 </template>
 
 <script>
-import { Auth } from 'aws-amplify';
+import { Auth } from '@aws-amplify/auth';
 
 export default {
   data() {
@@ -52,7 +52,10 @@ export default {
       this.error = null;
       
       try {
-        await Auth.signIn(this.email, this.password);
+        await Auth.signIn({
+          username: this.email,
+          password: this.password
+        });
         this.$router.push('/profile');
       } catch (error) {
         console.error('Error signing in:', error);

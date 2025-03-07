@@ -40,7 +40,7 @@
 </template>
 
 <script>
-import { Auth } from 'aws-amplify';
+import { getCurrentUser, signOut } from 'aws-amplify/auth';
 
 export default {
   data() {
@@ -51,14 +51,14 @@ export default {
   },
   async created() {
     this.checkAuth();
-    setInterval(this.checkAuth, 60000); // Check auth every minute
+    setInterval(this.checkAuth, 60000);
   },
   methods: {
     async checkAuth() {
       try {
-        const user = await Auth.currentAuthenticatedUser();
+        const user = await getCurrentUser();
         this.isAuthenticated = true;
-        this.userEmail = user.attributes.email;
+        this.userEmail = user.signInDetails?.loginId || '';
       } catch (error) {
         this.isAuthenticated = false;
         this.userEmail = '';
@@ -66,7 +66,7 @@ export default {
     },
     async signOut() {
       try {
-        await Auth.signOut();
+        await signOut();
         this.isAuthenticated = false;
         this.userEmail = '';
         this.$router.push('/login');

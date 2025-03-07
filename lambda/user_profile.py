@@ -2,12 +2,44 @@ import json
 import boto3
 import os
 from decimal import Decimal
+from datetime import datetime
 
 dynamodb = boto3.resource('dynamodb')
 sns = boto3.client('sns')
 
 USERS_TABLE = os.environ.get('USERS_TABLE')
 SNS_TOPIC_ARN = os.environ.get('SNS_TOPIC_ARN')
+
+def handle_cognito_trigger(event, context):
+    if event['triggerSource'] == 'PostConfirmation_ConfirmSignUp':
+        try:
+            user_attributes = event['request']['userAttributes']
+            
+            user_item = {
+                'UserID': user_attributes['sub'],  
+                'Email': user_attributes['email'],
+                'Name': '',  
+                'RegPlates': [], 
+                'CreatedAt': datetime.now().isoformat(),
+                'UpdatedAt': datetime.now().isoformat()
+            }
+            
+            table = dynamodb.Table(USERS_TABLE)
+            table.put_item(Item=user_item)
+            
+            if user_attributes['email']:
+                sns.subscribe(
+                    TopicArn=SNS_TOPIC_ARN,
+                    Protocol='email',
+                    Endpoint=user_attributes['email']
+                )
+            
+        except Exception as e:
+            print(f"Error creating user record: {str(e)}")
+        
+        return event
+    
+    return event
 
 def create_user_profile(event, context):
     try:
@@ -22,7 +54,8 @@ def create_user_profile(event, context):
             'UserID': user_id,
             'Email': email,
             'Name': name,
-            'RegPlates': reg_plates
+            'RegPlates': reg_plates,
+            'UpdatedAt': datetime.now().isoformat()
         }
         
         table = dynamodb.Table(USERS_TABLE)
@@ -140,6 +173,9 @@ def decimal_default(obj):
     raise TypeError
 
 def main(event, context):
+    if 'triggerSource' in event:
+        return handle_cognito_trigger(event, context)
+    
     route_key = event.get('routeKey', '')
     
     if route_key == 'POST /profile':

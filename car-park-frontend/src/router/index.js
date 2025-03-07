@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import { Auth } from 'aws-amplify';
+import { getCurrentUser } from 'aws-amplify/auth';
 import LoginCar from '../views/LoginCar.vue';
 import RegisterCar from '../views/RegisterCar.vue';
 import UserProfileCar from '../views/UserProfileCar.vue';
@@ -37,13 +37,22 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
   if (to.matched.some(record => record.meta.requiresAuth)) {
     try {
-      await Auth.currentAuthenticatedUser();
+      await getCurrentUser();
       next();
     } catch (error) {
       next('/login');
     }
   } else {
-    next();
+    if ((to.name === 'LoginCar' || to.name === 'RegisterCar')) {
+      try {
+        await getCurrentUser();
+        next('/profile');
+      } catch {
+        next();
+      }
+    } else {
+      next();
+    }
   }
 });
 
