@@ -44,8 +44,8 @@ def handle_cognito_trigger(event, context):
 def create_user_profile(event, context):
     try:
         body = json.loads(event['body'])
-        user_id = event['requestContext']['authorizer']['claims']['sub']
-        email = event['requestContext']['authorizer']['claims']['email']
+        user_id = event['requestContext']['authorizer']['jwt']['claims']['sub']
+        email = event['requestContext']['authorizer']['jwt']['claims']['email']
         
         name = body.get('name', '')
         reg_plates = body.get('regPlates', [])
@@ -72,7 +72,8 @@ def create_user_profile(event, context):
             'statusCode': 200,
             'headers': {
                 'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Credentials': 'true'
+                'Access-Control-Allow-Credentials': 'true',
+                'Content-Type': 'application/json'
             },
             'body': json.dumps({'message': 'Profile created successfully'})
         }
@@ -81,24 +82,30 @@ def create_user_profile(event, context):
             'statusCode': 500,
             'headers': {
                 'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Credentials': 'true'
+                'Access-Control-Allow-Credentials': 'true',
+                'Content-Type': 'application/json'
             },
             'body': json.dumps({'error': str(e)})
         }
 
 def get_user_profile(event, context):
     try:
-        user_id = event['requestContext']['authorizer']['claims']['sub']
+        print("Event:", json.dumps(event))
+        user_id = event['requestContext']['authorizer']['jwt']['claims']['sub']
+        print("User ID:", user_id)
         
         table = dynamodb.Table(USERS_TABLE)
+        print("Getting item from table:", USERS_TABLE)
         response = table.get_item(Key={'UserID': user_id})
+        print("DynamoDB Response:", json.dumps(response))
         
         if 'Item' in response:
             return {
                 'statusCode': 200,
                 'headers': {
                     'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Credentials': 'true'
+                    'Access-Control-Allow-Credentials': 'true',
+                    'Content-Type': 'application/json'
                 },
                 'body': json.dumps(response['Item'], default=decimal_default)
             }
@@ -107,64 +114,115 @@ def get_user_profile(event, context):
                 'statusCode': 404,
                 'headers': {
                     'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Credentials': 'true'
+                    'Access-Control-Allow-Credentials': 'true',
+                    'Content-Type': 'application/json'
                 },
                 'body': json.dumps({'message': 'User not found'})
             }
     except Exception as e:
+        import traceback
+        print("Error:", str(e))
+        print("Traceback:", traceback.format_exc())
         return {
             'statusCode': 500,
             'headers': {
                 'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Credentials': 'true'
+                'Access-Control-Allow-Credentials': 'true',
+                'Content-Type': 'application/json'
             },
-            'body': json.dumps({'error': str(e)})
+            'body': json.dumps({
+                'error': str(e),
+                'trace': traceback.format_exc()
+            })
         }
 
 def update_user_profile(event, context):
     try:
+        print("Event:", json.dumps(event))
         body = json.loads(event['body'])
-        user_id = event['requestContext']['authorizer']['claims']['sub']
+        print("Request body:", json.dumps(body))
+        user_id = event['requestContext']['authorizer']['jwt']['claims']['sub']
+        print("User ID:", user_id)
         
         name = body.get('name')
         reg_plates = body.get('regPlates')
+        print("Name:", name)
+        print("Reg Plates:", reg_plates)
         
         update_expression = "SET "
         expression_values = {}
+        expression_names = {}
         
-        if name:
-            update_expression += "Name = :name, "
+        if name is not None:
+            update_expression += "#n = :name, "
             expression_values[':name'] = name
+            expression_names['#n'] = 'Name'
             
-        if reg_plates:
+        if reg_plates is not None:
             update_expression += "RegPlates = :plates, "
             expression_values[':plates'] = reg_plates
             
-        update_expression = update_expression[:-2]
+        update_expression += "UpdatedAt = :updated"
+        expression_values[':updated'] = datetime.now().isoformat()
+        
+        if len(expression_values) == 1:  # Only UpdatedAt was set
+            return {
+                'statusCode': 400,
+                'headers': {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Credentials': 'true',
+                    'Content-Type': 'application/json'
+                },
+                'body': json.dumps({'error': 'No fields to update'})
+            }
+        
+        print("Update expression:", update_expression)
+        print("Expression values:", json.dumps(expression_values))
+        print("Expression names:", json.dumps(expression_names))
         
         table = dynamodb.Table(USERS_TABLE)
-        table.update_item(
-            Key={'UserID': user_id},
-            UpdateExpression=update_expression,
-            ExpressionAttributeValues=expression_values
-        )
+        print("Updating item in table:", USERS_TABLE)
+        
+        update_params = {
+            'Key': {'UserID': user_id},
+            'UpdateExpression': update_expression,
+            'ExpressionAttributeValues': expression_values,
+            'ReturnValues': "ALL_NEW"
+        }
+        
+        if expression_names:
+            update_params['ExpressionAttributeNames'] = expression_names
+            
+        response = table.update_item(**update_params)
+        print("DynamoDB Response:", json.dumps(response))
         
         return {
             'statusCode': 200,
             'headers': {
                 'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Credentials': 'true'
+                'Access-Control-Allow-Credentials': 'true',
+                'Content-Type': 'application/json'
             },
-            'body': json.dumps({'message': 'Profile updated successfully'})
+            'body': json.dumps({
+                'message': 'Profile updated successfully',
+                'profile': response.get('Attributes', {})
+            }, default=decimal_default)
         }
     except Exception as e:
+        import traceback
+        print("Error:", str(e))
+        print("Traceback:", traceback.format_exc())
         return {
             'statusCode': 500,
             'headers': {
                 'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Credentials': 'true'
+                'Access-Control-Allow-Credentials': 'true',
+                'Content-Type': 'application/json'
             },
-            'body': json.dumps({'error': str(e)})
+            'body': json.dumps({
+                'error': str(e),
+                'trace': traceback.format_exc()
+            })
         }
 
 def decimal_default(obj):
@@ -176,14 +234,26 @@ def main(event, context):
     if 'triggerSource' in event:
         return handle_cognito_trigger(event, context)
     
-    route_key = event.get('routeKey', '')
+    http_method = event.get('requestContext', {}).get('http', {}).get('method', '')
+    path = event.get('rawPath', '')
     
-    if route_key == 'POST /profile':
+    if http_method == 'POST' and path == '/profile':
         return create_user_profile(event, context)
-    elif route_key == 'GET /profile':
+    elif http_method == 'GET' and path == '/profile':
         return get_user_profile(event, context)
-    elif route_key == 'PUT /profile':
+    elif http_method == 'PUT' and path == '/profile':
         return update_user_profile(event, context)
+    elif http_method == 'OPTIONS':
+        return {
+            'statusCode': 200,
+            'headers': {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token',
+                'Access-Control-Allow-Credentials': 'true'
+            },
+            'body': ''
+        }
     else:
         return {
             'statusCode': 400,
@@ -191,5 +261,5 @@ def main(event, context):
                 'Access-Control-Allow-Origin': '*',
                 'Access-Control-Allow-Credentials': 'true'
             },
-            'body': json.dumps({'error': 'Invalid route'})
-        } 
+            'body': json.dumps({'error': f'Invalid route: {http_method} {path}'})
+        }

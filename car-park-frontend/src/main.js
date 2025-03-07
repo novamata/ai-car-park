@@ -4,6 +4,7 @@ import router from './router';
 import 'bootstrap/dist/css/bootstrap.css';
 import BootstrapVue3 from 'bootstrap-vue-3';
 import 'bootstrap-vue-3/dist/bootstrap-vue-3.css';
+import { BIconTrash, BIconPlus } from 'bootstrap-vue-3';
 
 import { Amplify } from 'aws-amplify';
 
@@ -26,6 +27,8 @@ Amplify.configure({
 });
 
 const app = createApp(App);
+app.component('BIconTrash', BIconTrash);
+app.component('BIconPlus', BIconPlus);
 app.use(router);
 app.use(BootstrapVue3);
 app.mount('#app');

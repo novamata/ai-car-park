@@ -90,8 +90,10 @@ export default {
         const { tokens } = await fetchAuthSession();
         const token = tokens.idToken.toString();
         
+        console.log('User attributes:', attributes);
         this.profile.email = attributes.email;
         
+        console.log('Making API request to:', `${process.env.VUE_APP_API_URL}/profile`);
         const response = await api.get(
           `${process.env.VUE_APP_API_URL}/profile`,
           {
@@ -101,6 +103,8 @@ export default {
           }
         );
         
+        console.log('API Response:', response.data);
+        
         if (response.data) {
           this.profile.name = response.data.Name || '';
           this.profile.regPlates = response.data.RegPlates || [];
@@ -108,14 +112,13 @@ export default {
       } catch (error) {
         console.error('Error loading profile:', error);
         if (error.response) {
-          // The request was made and the server responded with a status code
-          // that falls out of the range of 2xx
-          this.error = `Server error: ${error.response.status} - ${error.response.data?.message || 'Unknown error'}`;
+          console.error('Error response:', error.response);
+          this.error = `Server error: ${error.response.status} - ${error.response.data?.message || error.response.data || 'Unknown error'}`;
         } else if (error.request) {
-          // The request was made but no response was received
+          console.error('No response received:', error.request);
           this.error = 'No response from server. Please check your connection.';
         } else {
-          // Something happened in setting up the request that triggered an Error
+          console.error('Request setup error:', error.message);
           this.error = error.message;
         }
       } finally {
@@ -133,10 +136,11 @@ export default {
         
         const payload = {
           name: this.profile.name,
-          regPlates: this.profile.regPlates
+          regPlates: this.profile.regPlates.filter(plate => plate.trim() !== '')  
         };
         
-        await api.put(
+        console.log('Saving profile with payload:', payload);
+        const response = await api.put(
           `${process.env.VUE_APP_API_URL}/profile`,
           payload,
           {
@@ -146,14 +150,26 @@ export default {
           }
         );
         
+        console.log('Save response:', response.data);
+        
+        if (response.data.profile) {
+          this.profile.name = response.data.profile.Name || '';
+          this.profile.regPlates = response.data.profile.RegPlates || [];
+        }
+        
         this.success = 'Profile saved successfully';
       } catch (error) {
         console.error('Error saving profile:', error);
         if (error.response) {
-          this.error = `Server error: ${error.response.status} - ${error.response.data?.message || 'Unknown error'}`;
+          console.error('Error response data:', error.response.data);
+          const errorMessage = error.response.data?.error || error.response.data?.message || 'Unknown error';
+          const errorDetails = error.response.data?.trace || '';
+          this.error = `Server error (${error.response.status}): ${errorMessage}${errorDetails ? '\n' + errorDetails : ''}`;
         } else if (error.request) {
+          console.error('No response received:', error.request);
           this.error = 'No response from server. Please check your connection.';
         } else {
+          console.error('Request setup error:', error.message);
           this.error = error.message;
         }
       } finally {
