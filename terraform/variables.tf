@@ -23,16 +23,6 @@ variable "sessions_table_name" {
   type        = string
 }
 
-variable "api_name" {
-  description = "Name of the API Gateway"
-  type        = string
-}
-
-variable "api_stage_name" {
-  description = "Name of the API Gateway stage"
-  type        = string
-}
-
 variable "notification_email" {
   description = "Email address to receive parking payment notifications"
   type        = string
